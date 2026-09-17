@@ -16,20 +16,41 @@
 
 ## Стек
 
-- JavaScript
+- TypeScript, React 19 + Mantine (клиент), Fastify + Drizzle ORM + PostgreSQL (сервер)
+- Vite — сборка клиента, tsc — сервера; один процесс отдаёт статику и `/api/*`
+- TypeSpec → OpenAPI → TypeBox — контракт API и генерация схем
+- Playwright — браузерные тесты; Docker — образ приложения
 
 ## Установка
-
-<!-- Опишите установку: клонирование, зависимости, переменные окружения -->
 
 ```bash
 git clone https://github.com/mikitasazan/middle-frontend-project-426.git
 cd middle-frontend-project-426
+make install
 ```
 
 ## Использование
 
-<!-- Добавьте примеры запуска и запись asciinema — именно это смотрит работодатель -->
+Приложение читает `PORT`, `DATABASE_URL` и `SESSION_SECRET` из окружения.
+Миграции и наполнение каталога выполняются при старте.
+
+```bash
+make build   # сборка клиента и сервера
+make start   # миграции + сид + запуск на :8080
+make test    # браузерные тесты против запущенного приложения (APP_URL)
+```
+
+Контракт приложения — образ из `Dockerfile`: он собирается одной командой
+и запускается так же, как прод:
+
+```bash
+docker build -t online-store .
+docker run --rm -p 8080:8080 -e PORT=8080 \
+  -e DATABASE_URL=postgres://... -e SESSION_SECRET=... online-store
+```
+
+Деплой — из этого же образа (`render.yaml`), мониторинг ошибок подключается
+переменной `VITE_MONITORING_DSN` при сборке.
 
 ---
 
