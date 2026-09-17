@@ -1,0 +1,58 @@
+name: ci
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://postgres:password@localhost:5432/postgres
+      SESSION_SECRET: ci-secret-with-minimum-length-of-32-characters
+      PORT: 8080
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: make install
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Start application
+        run: |
+          npm start &
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:8080/api/health >/dev/null && break
+            sleep 1
+          done
+          curl -sf http://localhost:8080/api/health >/dev/null
+
+      - name: Run browser tests
+        run: APP_URL=http://localhost:8080 make test
