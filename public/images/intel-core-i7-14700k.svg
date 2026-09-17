@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 450" role="img" aria-label="Процессор Core i7-14700K">
+  <rect width="600" height="450" fill="#effcf9"/>
+  <g fill="none" stroke="#99e9d9" stroke-width="4">
+    <rect x="150" y="150" width="300" height="180" rx="14"/>
+    <rect x="196" y="196" width="208" height="88" rx="8"/>
+    <path d="M196 330v34M254 330v34M312 330v34M370 330v34M404 330v34"/>
+    <path d="M150 214H108M150 250H108M150 286H108"/>
+  </g>
+  <text x="300" y="252" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="30" font-weight="700" fill="#0f766e">Core i7-14700K</text>
+  <text x="300" y="404" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="19" fill="#0f766e" opacity="0.7">Процессор</text>
+</svg>

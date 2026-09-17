@@ -1,0 +1,8 @@
+node_modules
+dist
+tmp
+__tests__
+playwright.config.ts
+tsp-output
+npm-cache
+*.log

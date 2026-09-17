@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 450" role="img" aria-label="Материнская плата ASUS ROG STRIX Z790-E">
+  <rect width="600" height="450" fill="#effcf9"/>
+  <g fill="none" stroke="#99e9d9" stroke-width="4">
+    <rect x="110" y="120" width="380" height="240" rx="12"/>
+    <rect x="150" y="156" width="104" height="104" rx="8"/>
+    <path d="M300 160h150M300 192h150M300 224h150"/>
+    <path d="M150 300h300"/>
+  </g>
+  <text x="300" y="252" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="30" font-weight="700" fill="#0f766e">ASUS ROG STRIX Z790-E</text>
+  <text x="300" y="404" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="19" fill="#0f766e" opacity="0.7">Материнская плата</text>
+</svg>

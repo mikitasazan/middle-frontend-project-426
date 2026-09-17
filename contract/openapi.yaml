@@ -1,0 +1,778 @@
+openapi: 3.0.0
+info:
+  title: Online Store API
+  version: 1.0.0
+tags:
+  - name: Service
+  - name: Auth
+  - name: Catalog
+  - name: Home
+  - name: Orders
+paths:
+  /api/categories:
+    get:
+      operationId: Categories_list
+      description: Список категорий для фильтра каталога.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+              examples:
+                Категории каталога:
+                  summary: Категории каталога
+                  value:
+                    - id: cat_gpu
+                      slug: videokarty
+                      name: Видеокарты
+                    - id: cat_cpu
+                      slug: processory
+                      name: Процессоры
+                    - id: cat_mb
+                      slug: materinskie-platy
+                      name: Материнские платы
+      tags:
+        - Catalog
+  /api/health:
+    get:
+      operationId: HealthCheck_get
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: ok
+      tags:
+        - Service
+  /api/me:
+    get:
+      operationId: Me_get
+      description: Текущий пользователь. Без активной сессии — 401.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              example:
+                id: usr_1
+                email: ivan@example.com
+        '401':
+          description: Требуется авторизация (401).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      tags:
+        - Auth
+  /api/orders:
+    post:
+      operationId: Orders_create
+      description: |-
+        Оформление заказа. Только для авторизованного пользователя (иначе 401).
+        Бэкенд сам резолвит товары, берёт priceAtPurchase из текущей цены и считает total.
+        Отказ атомарный: если хотя бы один товар не найден или недоступен — 400 с перечнем
+        проблемных товаров в unavailableProductIds, заказ не создаётся целиком.
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          description: Некорректные данные запроса или нарушенное бизнес-правило (400).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Требуется авторизация (401).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      tags:
+        - Orders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+            examples:
+              Оформление заказа с доставкой:
+                summary: Оформление заказа с доставкой
+                value:
+                  items:
+                    - productId: prd_rtx4070
+                      quantity: 1
+                  shipping:
+                    method: delivery
+                    recipientName: Иван Петров
+                    phone: '+79991234567'
+                    address: ул. Ленина, 15, кв. 42
+    get:
+      operationId: Orders_list
+      description: Заказы текущего пользователя, новые сверху. Чужие заказы недоступны.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+        '401':
+          description: Требуется авторизация (401).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      tags:
+        - Orders
+  /api/orders/{id}:
+    get:
+      operationId: Orders_getById
+      description: 'Один заказ текущего пользователя. Чужой заказ — 404, а не 403: существование чужих заказов не раскрывается.'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '401':
+          description: Требуется авторизация (401).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Ресурс не найден (404).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      tags:
+        - Orders
+  /api/products:
+    get:
+      operationId: Products_list
+      description: Каталог с фильтрацией и пагинацией. Фильтры комбинируются, пустая выдача — 200 с пустым items.
+      parameters:
+        - name: category
+          in: query
+          required: false
+          description: Слаг категории.
+          schema:
+            type: string
+          explode: false
+        - name: q
+          in: query
+          required: false
+          description: Поиск по совпадению в названии товара.
+          schema:
+            type: string
+          explode: false
+        - name: priceMin
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+          explode: false
+        - name: priceMax
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+          explode: false
+        - name: available
+          in: query
+          required: false
+          description: true — только доступные товары, false — только недоступные, не задан — все.
+          schema:
+            type: boolean
+          explode: false
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            default: 1
+          explode: false
+        - name: perPage
+          in: query
+          required: false
+          description: Размер страницы. Небольшой по умолчанию, расширяется параметром.
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 48
+            default: 6
+          explode: false
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductPage'
+              examples:
+                Каталог, отфильтрованный по категории:
+                  summary: Каталог, отфильтрованный по категории
+                  value:
+                    items:
+                      - id: prd_rtx4070
+                        slug: nvidia-geforce-rtx-4070
+                        name: NVIDIA GeForce RTX 4070
+                        description: Видеокарта 12 ГБ GDDR6X, 2560 CUDA-ядер.
+                        price:
+                          amount: 62990
+                          currency: RUB
+                        categoryId: cat_gpu
+                        available: true
+                    meta:
+                      page: 1
+                      perPage: 6
+                      total: 5
+                      totalPages: 1
+        '400':
+          description: Некорректные данные запроса или нарушенное бизнес-правило (400).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      tags:
+        - Catalog
+  /api/products/{id}:
+    get:
+      operationId: Products_getById
+      description: Товар по идентификатору — для карточки товара и прямого захода по ссылке.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          description: Ресурс не найден (404).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      tags:
+        - Catalog
+  /api/promos:
+    get:
+      operationId: Promos_list
+      description: Промо-блоки главной страницы, в порядке добавления. Пустой список — главная без промо, это не ошибка.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Promo'
+      tags:
+        - Home
+  /api/session:
+    post:
+      operationId: Session_create
+      description: Вход. Создаёт серверную сессию. Неверная пара email и пароль — 401 с типом invalid-credentials.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              examples:
+                Успешный вход:
+                  summary: Успешный вход
+                  value:
+                    id: usr_1
+                    email: ivan@example.com
+        '400':
+          description: Некорректные данные запроса или нарушенное бизнес-правило (400).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Требуется авторизация (401).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Credentials'
+            examples:
+              Успешный вход:
+                summary: Успешный вход
+                value:
+                  email: ivan@example.com
+                  password: secret123
+    delete:
+      operationId: Session_destroy
+      description: Выход. Уничтожает сессию на сервере.
+      parameters: []
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      tags:
+        - Auth
+  /api/users:
+    post:
+      operationId: Users_register
+      description: Регистрация. Занятый email — 409 с типом email-taken, некорректные данные — 400.
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              examples:
+                Регистрация нового покупателя:
+                  summary: Регистрация нового покупателя
+                  value:
+                    id: usr_1
+                    email: ivan@example.com
+        '400':
+          description: Некорректные данные запроса или нарушенное бизнес-правило (400).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: 'Конфликт с текущим состоянием: например, email уже занят (409).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Credentials'
+            examples:
+              Регистрация нового покупателя:
+                summary: Регистрация нового покупателя
+                value:
+                  email: ivan@example.com
+                  password: secret123
+components:
+  schemas:
+    CartItem:
+      type: object
+      required:
+        - productId
+        - quantity
+      properties:
+        productId:
+          type: string
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+      description: 'Позиция корзины в запросе на оформление: только товар и количество. Цен клиент не присылает.'
+      example:
+        productId: prd_rtx4070
+        quantity: 1
+    Category:
+      type: object
+      required:
+        - id
+        - slug
+        - name
+      properties:
+        id:
+          type: string
+        slug:
+          type: string
+        name:
+          type: string
+      description: Плоская товарная группа комплектующих. Вложенности нет.
+      example:
+        id: cat_gpu
+        slug: videokarty
+        name: Видеокарты
+    CreateOrderRequest:
+      type: object
+      required:
+        - items
+        - shipping
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+          minItems: 1
+          description: Состав корзины. Пустую корзину оформить нельзя.
+        shipping:
+          $ref: '#/components/schemas/ShippingDetails'
+      description: Тело запроса на оформление. Содержит состав корзины и данные получения — и не содержит цен.
+    Credentials:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+      description: Данные для регистрации и входа.
+      example:
+        email: ivan@example.com
+        password: secret123
+    Health:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+      description: Проверка живости приложения. Используется healthcheck'ом контейнера и CI.
+      example:
+        status: ok
+    Money:
+      type: object
+      required:
+        - amount
+        - currency
+      properties:
+        amount:
+          type: integer
+          format: int32
+        currency:
+          type: string
+          default: RUB
+      description: 'Денежная сумма. amount — целые рубли без копеек: дробные цены дают ошибки округления в итоге заказа.'
+      example:
+        amount: 32990
+        currency: RUB
+    Order:
+      type: object
+      required:
+        - id
+        - status
+        - items
+        - shipping
+        - total
+        - createdAt
+      properties:
+        id:
+          type: string
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+        shipping:
+          $ref: '#/components/schemas/ShippingDetails'
+        total:
+          allOf:
+            - $ref: '#/components/schemas/Money'
+          description: Итог, посчитанный бэкендом по priceAtPurchase. Клиентскому расчёту сервер не доверяет.
+        createdAt:
+          type: string
+          format: date-time
+      description: 'Исторический документ покупки. Самодостаточен: после создания не зависит от изменений каталога.'
+      example:
+        id: ord_1
+        status: paid
+        items:
+          - productId: prd_rtx4070
+            productName: NVIDIA GeForce RTX 4070
+            priceAtPurchase:
+              amount: 62990
+              currency: RUB
+            quantity: 1
+        shipping:
+          method: delivery
+          recipientName: Иван Петров
+          phone: '+79991234567'
+          address: ул. Ленина, 15, кв. 42
+        total:
+          amount: 62990
+          currency: RUB
+        createdAt: '2026-07-27T12:00:00Z'
+    OrderItem:
+      type: object
+      required:
+        - productId
+        - productName
+        - priceAtPurchase
+        - quantity
+      properties:
+        productId:
+          type: string
+        productName:
+          type: string
+        priceAtPurchase:
+          $ref: '#/components/schemas/Money'
+        quantity:
+          type: integer
+          format: int32
+      description: 'Позиция заказа со снимком товара на момент покупки. С актуальным товаром не джойнится: переименование или смена цены не меняют старый заказ.'
+      example:
+        productId: prd_rtx4070
+        productName: NVIDIA GeForce RTX 4070
+        priceAtPurchase:
+          amount: 62990
+          currency: RUB
+        quantity: 1
+    OrderStatus:
+      type: string
+      enum:
+        - paid
+      description: 'Статус заказа. В проекте единственное значение: оформление считается совершённой оплатой, отдельного шага оплаты и отмены заказа нет.'
+    PageMeta:
+      type: object
+      required:
+        - page
+        - perPage
+        - total
+        - totalPages
+      properties:
+        page:
+          type: integer
+          format: int32
+        perPage:
+          type: integer
+          format: int32
+        total:
+          type: integer
+          format: int32
+        totalPages:
+          type: integer
+          format: int32
+      description: Метаданные постраничной выдачи.
+      example:
+        page: 1
+        perPage: 6
+        total: 14
+        totalPages: 3
+    ProblemDetails:
+      type: object
+      required:
+        - type
+        - title
+        - status
+      properties:
+        type:
+          allOf:
+            - $ref: '#/components/schemas/ProblemType'
+          description: Стабильный URI типа проблемы. Клиент ветвится по нему, а не по тексту.
+        title:
+          type: string
+          description: Короткое техническое название типа проблемы, на английском. Для разработчика, не для пользователя.
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+          description: 'Техническое пояснение конкретного случая: идентификаторы, путь поля. Заполняется только когда несёт данные, которых нет в type.'
+        unavailableProductIds:
+          type: array
+          items:
+            type: string
+          description: Идентификаторы товаров, из-за которых заказ отклонён. Заполняется только при отказе оформления.
+      description: |-
+        Ошибка API в формате Problem Details (RFC 9457). Пользовательский текст по этому телу
+        собирает клиент — по полю type. Поля title и detail предназначены разработчику и логам,
+        поэтому в интерфейс не попадают и не переводятся.
+      example:
+        type: https://hexlet.io/problems/validation-error
+        title: Invalid request data
+        status: 400
+        detail: '/body/password: must NOT have fewer than 6 characters'
+    ProblemType:
+      type: string
+      enum:
+        - https://hexlet.io/problems/invalid-credentials
+        - https://hexlet.io/problems/email-taken
+        - https://hexlet.io/problems/address-required
+        - https://hexlet.io/problems/unavailable-items
+        - https://hexlet.io/problems/validation-error
+        - https://hexlet.io/problems/unauthorized
+        - https://hexlet.io/problems/not-found
+        - https://hexlet.io/problems/internal-error
+        - about:blank
+      description: |-
+        Словарь типов проблем. Закрытый: клиент выбирает текст ошибки по type, поэтому новый
+        случай начинается с правки этого союза, а не с новой строки в интерфейсе.
+        internal-error может прийти от любой операции и в их ответах отдельно не описан.
+    Product:
+      type: object
+      required:
+        - id
+        - slug
+        - name
+        - description
+        - price
+        - categoryId
+        - available
+      properties:
+        id:
+          type: string
+        slug:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          $ref: '#/components/schemas/Money'
+        categoryId:
+          type: string
+        imageUrl:
+          type: string
+          description: URL изображения. Если не задан, интерфейс показывает заглушку.
+        available:
+          type: boolean
+      description: 'Единица каталога — комплектующее для ПК. available — булев признак: числовых остатков и резервирования в проекте нет.'
+      example:
+        id: prd_rtx4070
+        slug: nvidia-geforce-rtx-4070
+        name: NVIDIA GeForce RTX 4070
+        description: Видеокарта 12 ГБ GDDR6X, 2560 CUDA-ядер.
+        price:
+          amount: 62990
+          currency: RUB
+        categoryId: cat_gpu
+        imageUrl: https://example.com/rtx4070.jpg
+        available: true
+    ProductPage:
+      type: object
+      required:
+        - items
+        - meta
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+      description: 'Страница каталога: товары плюс метаданные пагинации.'
+    Promo:
+      type: object
+      required:
+        - id
+        - title
+        - text
+        - product
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        text:
+          type: string
+        product:
+          allOf:
+            - $ref: '#/components/schemas/Product'
+          description: Товар, на страницу которого ведёт промо-блок.
+      description: |-
+        Промо-блок главной страницы: текст магазина и товар, к которому этот текст ведёт.
+        Живёт в базе, а не в вёрстке, — правка формулировки не требует пересборки фронтенда.
+        Товар приходит вложенным: главной нужны его название и цена, и второй запрос за ними
+        был бы лишним.
+    ShippingDetails:
+      type: object
+      required:
+        - method
+        - recipientName
+        - phone
+      properties:
+        method:
+          $ref: '#/components/schemas/ShippingMethod'
+        recipientName:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+          description: Улица и дом свободной строкой. Обязателен при delivery, при pickup не заполняется.
+      description: Данные получения заказа. Город не спрашивается и не хранится — он подразумевается. Email не дублируется, он есть у пользователя.
+      example:
+        method: delivery
+        recipientName: Иван Петров
+        phone: '+79991234567'
+        address: ул. Ленина, 15, кв. 42
+    ShippingMethod:
+      type: string
+      enum:
+        - delivery
+        - pickup
+      description: 'Способ получения заказа. Магазин работает в одном городе: пункт самовывоза один, доставка только по этому городу.'
+    User:
+      type: object
+      required:
+        - id
+        - email
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+      description: Покупатель. Учётная запись и покупатель совпадают — отдельной сущности «клиент» нет.
+      example:
+        id: usr_1
+        email: ivan@example.com
+servers:
+  - url: http://localhost:8080
+    description: Local development / Prism mock
+    variables: {}

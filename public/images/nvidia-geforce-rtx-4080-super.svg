@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 450" role="img" aria-label="Видеокарта GeForce RTX 4080 SUPER">
+  <rect width="600" height="450" fill="#effcf9"/>
+  <g fill="none" stroke="#99e9d9" stroke-width="4">
+    <rect x="96" y="168" width="408" height="132" rx="12"/>
+    <circle cx="196" cy="234" r="46"/>
+    <circle cx="356" cy="234" r="46"/>
+    <path d="M120 300v40M480 168v-34"/>
+  </g>
+  <text x="300" y="252" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="30" font-weight="700" fill="#0f766e">GeForce RTX 4080 SUPER</text>
+  <text x="300" y="404" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="19" fill="#0f766e" opacity="0.7">Видеокарта</text>
+</svg>
